@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design Review</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .container { display: flex; height: 100vh; }
+    .panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #30363d;
+      min-width: 280px;
+    }
+    .panel:last-child { border-right: none; flex: 0 0 380px; }
+    .panel-header {
+      padding: 10px 14px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .panel-body {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+    }
+    .toolbar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .btn {
+      padding: 5px 12px;
+      background: #238636;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #2ea043; }
+    .btn-secondary { background: #1f6feb; }
+    .btn-secondary:hover { background: #388bfd; }
+    .btn-danger { background: #da3633; }
+    .btn-danger:hover { background: #f85149; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-lg {
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 8px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-lg .icon {
+      font-size: 16px;
+    }
+    .btn-submit {
+      background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+      box-shadow: 0 2px 8px rgba(35,134,54,0.3);
+    }
+    .btn-submit:hover {
+      background: linear-gradient(135deg, #2ea043 0%, #3fb950 100%);
+      box-shadow: 0 4px 12px rgba(35,134,54,0.4);
+      transform: translateY(-1px);
+    }
+    .btn-approve {
+      background: linear-gradient(135deg, #8957e5 0%, #a371f7 100%);
+      box-shadow: 0 2px 8px rgba(137,87,229,0.3);
+    }
+    .btn-approve:hover {
+      background: linear-gradient(135deg, #a371f7 0%, #bc8cff 100%);
+      box-shadow: 0 4px 12px rgba(137,87,229,0.4);
+      transform: translateY(-1px);
+    }
+    .mode-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #8b949e;
+    }
+    .mode-toggle input { accent-color: #58a6ff; }
+
+    /* Preview */
+    .preview-wrapper {
+      position: relative;
+      background: #ffffff;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+    }
+    #previewFrame {
+      width: 100%;
+      min-height: 100%;
+      border: none;
+      display: block;
+    }
+    .highlight-overlay {
+      position: absolute;
+      pointer-events: none;
+      z-index: 10000;
+      box-shadow: 0 0 0 2px #f0883e, 0 0 20px rgba(240,136,62,0.3);
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+    .highlight-label {
+      position: absolute;
+      top: -22px;
+      left: 0;
+      background: #f0883e;
+      color: #000;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+
+    /* Status bar */
+    .status-bar {
+      padding: 6px 14px;
+      background: #0d1117;
+      border-top: 1px solid #30363d;
+      font-size: 11px;
+      color: #8b949e;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .status-badge {
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .status-pending { background: rgba(88,166,255,0.15); color: #58a6ff; }
+    .status-has { background: rgba(210,168,255,0.15); color: #d2a8ff; }
+    .status-approved { background: rgba(46,160,67,0.15); color: #3fb950; }
+
+    /* ===== Right Panel: Action Area (Compact) ===== */
+    .action-area {
+      padding: 10px 14px;
+      background: #0d1117;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      gap: 8px;
+    }
+    .action-area .btn {
+      flex: 1;
+      margin-bottom: 0;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+    .divider {
+      height: 1px;
+      background: #30363d;
+      margin: 10px 0;
+    }
+    .action-hint {
+      font-size: 11px;
+      color: #8b949e;
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    /* ===== Right Panel: Steps Guide (Collapsed by default) ===== */
+    .steps-guide {
+      padding: 8px 14px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+    }
+    .steps-guide-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 4px 0;
+    }
+    .steps-guide-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .steps-toggle {
+      font-size: 11px;
+      color: #58a6ff;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .steps-body {
+      margin-top: 6px;
+    }
+    .steps-body.collapsed .step-item {
+      display: none;
+    }
+    .steps-body.collapsed .step-item.active {
+      display: flex;
+    }
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+    .step-item:last-child { margin-bottom: 0; }
+    .step-num {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #30363d;
+      color: #8b949e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .step-item.active .step-num {
+      background: #238636;
+      color: white;
+    }
+    .step-item.done .step-num {
+      background: #1f6feb;
+      color: white;
+    }
+    .step-text {
+      color: #8b949e;
+      line-height: 18px;
+    }
+    .step-item.active .step-text {
+      color: #c9d1d9;
+      font-weight: 500;
+    }
+    .step-item.done .step-text {
+      color: #58a6ff;
+      text-decoration: line-through;
+      opacity: 0.7;
+    }
+
+    /* Annotation list */
+    .annotation-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px;
+    }
+    .annotation-item {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 12px;
+    }
+    .annotation-item .meta {
+      color: #8b949e;
+      font-size: 10px;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .annotation-item .selector {
+      color: #d2a8ff;
+      background: rgba(210,168,255,0.08);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 11px;
+      word-break: break-all;
+      margin-bottom: 4px;
+    }
+    .annotation-item .content {
+      color: #7ee787;
+      font-size: 11px;
+      max-height: 50px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+    .annotation-item .type-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .type-modify { background: rgba(218,54,51,0.15); color: #f85149; }
+    .type-question { background: rgba(210,168,255,0.15); color: #d2a8ff; }
+    .type-missing { background: rgba(88,166,255,0.15); color: #58a6ff; }
+    .type-confirm { background: rgba(46,160,67,0.15); color: #3fb950; }
+    .annotation-item textarea {
+      width: 100%;
+      height: 50px;
+      background: #0d1117;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 6px;
+      font-size: 12px;
+      resize: none;
+      outline: none;
+      margin-top: 4px;
+    }
+    .annotation-item textarea:focus { border-color: #58a6ff; }
+    .annotation-item .actions {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+    }
+    .annotation-item .actions button {
+      padding: 3px 8px;
+      font-size: 11px;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #8b949e;
+      padding: 30px;
+      font-size: 12px;
+    }
+
+    .draft-indicator {
+      font-size: 11px;
+      color: #8b949e;
+      text-align: center;
+      margin-top: 6px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #161b22;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 13px;
+      z-index: 20000;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+
+    .type-selector {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .type-btn {
+      padding: 3px 8px;
+      border: 1px solid #30363d;
+      background: #0d1117;
+      color: #8b949e;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .type-btn.active {
+      border-color: currentColor;
+      font-weight: 600;
+    }
+    .type-btn[data-type="modify"].active { color: #f85149; border-color: #f85149; background: rgba(218,54,51,0.1); }
+    .type-btn[data-type="question"].active { color: #d2a8ff; border-color: #d2a8ff; background: rgba(210,168,255,0.1); }
+    .type-btn[data-type="missing"].active { color: #58a6ff; border-color: #58a6ff; background: rgba(88,166,255,0.1); }
+    .type-btn[data-type="confirm"].active { color: #3fb950; border-color: #3fb950; background: rgba(46,160,67,0.1); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Preview Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>设计方案预览</span>
+        <div class="toolbar">
+          <label class="mode-toggle">
+            <input type="checkbox" id="inspectMode" checked>
+            <span>审查模式</span>
+          </label>
+          <button class="btn btn-danger" onclick="clearAllAnnotations()">清空</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="preview-wrapper" id="previewWrapper">
+          <iframe id="previewFrame" sandbox="allow-same-origin allow-scripts"></iframe>
+        </div>
+      </div>
+      <div class="status-bar">
+        <span id="sessionInfo">Loading...</span>
+        <span class="status-badge status-pending" id="statusBadge">评审中</span>
+      </div>
+    </div>
+
+    <!-- Annotation Panel -->
+    <div class="panel">
+      <!-- Steps Guide -->
+      <div class="steps-guide">
+        <div class="steps-guide-header" onclick="toggleSteps()">
+          <div class="steps-guide-title">评审步骤</div>
+          <button class="steps-toggle" id="stepsToggle">展开</button>
+        </div>
+        <div class="steps-body collapsed" id="stepsBody">
+          <div class="step-item active" id="step-1">
+            <div class="step-num">1</div>
+            <div class="step-text">点击预览区元素进行标注</div>
+          </div>
+          <div class="step-item" id="step-2">
+            <div class="step-num">2</div>
+            <div class="step-text">选择意见类型并填写修改意见</div>
+          </div>
+          <div class="step-item" id="step-3">
+            <div class="step-num">3</div>
+            <div class="step-text">点击「提交本轮评审」发送给我</div>
+          </div>
+          <div class="step-item" id="step-4">
+            <div class="step-num">4</div>
+            <div class="step-text">我修改后刷新查看新版本</div>
+          </div>
+          <div class="step-item" id="step-5">
+            <div class="step-num">5</div>
+            <div class="step-text">满意后点击「确认通过」</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons (Top) -->
+      <div class="action-area">
+        <button class="btn btn-submit" id="submitBtn" onclick="submitAnnotations()">
+          <span class="icon">&#128190;</span>
+          <span>提交评审</span>
+        </button>
+        <button class="btn btn-approve" onclick="approveDesign()">
+          <span class="icon">&#10004;</span>
+          <span>确认通过</span>
+        </button>
+      </div>
+
+      <!-- Annotation List Header -->
+      <div class="panel-header">
+        <span>标注列表 (<span id="annoCount">0</span>)</span>
+        <div class="toolbar">
+          <button class="btn btn-secondary" onclick="refreshStatus()" title="刷新状态">刷新</button>
+        </div>
+      </div>
+
+      <!-- Annotation List Body -->
+      <div class="panel-body" style="overflow: auto;">
+        <div id="draftIndicator" class="draft-indicator" style="padding: 8px 12px 0;"></div>
+        <div id="annotationList" class="annotation-list">
+          <div class="empty-state">点击预览区域中的元素开始标注</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const PROJECT = params.get('project');
+    const FILE = params.get('file');
+    const SESSION = params.get('session');
+    const API_BASE = location.origin;
+
+    let annotations = [];
+    let annoCounter = 0;
+    const TYPE_MAP = {
+      modify: { label: '修改建议', class: 'type-modify' },
+      question: { label: '决策质疑', class: 'type-question' },
+      missing: { label: '补充遗漏', class: 'type-missing' },
+      confirm: { label: '正向确认', class: 'type-confirm' }
+    };
+
+    // ===== Init =====
+    async function init() {
+      if (!PROJECT || !FILE || !SESSION) {
+        showToast('缺少参数: project, file, session');
+        return;
+      }
+      document.getElementById('sessionInfo').textContent = `${FILE} · ${SESSION}`;
+      await loadDesign();
+      loadDraftAnnotations();
+      refreshStatus();
+      setInterval(refreshStatus, 5000);
+    }
+
+    // ===== Load Design =====
+    async function loadDesign() {
+      const frame = document.getElementById('previewFrame');
+      try {
+        const res = await fetch(`${API_BASE}/api/design?project=${encodeURIComponent(PROJECT)}&file=${encodeURIComponent(FILE)}`);
+        if (!res.ok) throw new Error('Failed to load design');
+        const html = await res.text();
+
+        const doc = frame.contentDocument || frame.contentWindow.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
+
+        setupInspector(doc);
+        restoreHighlights();
+      } catch (err) {
+        showToast('加载设计方案失败: ' + err.message);
+      }
+    }
+
+    // ===== Inspector =====
+    function setupInspector(doc) {
+      const style = doc.createElement('style');
+      style.textContent = `
+        * { cursor: crosshair !important; }
+        .review-hover {
+          outline: 2px dashed #58a6ff !important;
+          outline-offset: 2px !important;
+          background: rgba(88,166,255,0.08) !important;
+        }
+      `;
+      doc.head.appendChild(style);
+
+      let hoveredEl = null;
+
+      doc.addEventListener('mouseover', (e) => {
+        if (!document.getElementById('inspectMode').checked) return;
+        if (hoveredEl) hoveredEl.classList.remove('review-hover');
+        hoveredEl = e.target;
+        hoveredEl.classList.add('review-hover');
+        e.stopPropagation();
+      });
+
+      doc.addEventListener('mouseout', () => {
+        if (hoveredEl) {
+          hoveredEl.classList.remove('review-hover');
+          hoveredEl = null;
+        }
+      });
+
+      doc.addEventListener('click', (e) => {
+        if (!document.getElementById('inspectMode').checked) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const el = e.target;
+        const selector = getUniqueSelector(el);
+        const xpath = getXPath(el);
+        const text = el.textContent.trim().substring(0, 120);
+        const html = el.outerHTML.substring(0, 400);
+        const reviewId = el.closest('[data-review-id]')?.dataset.reviewId || null;
+
+        addAnnotation({
+          selector,
+          xpath,
+          reviewId,
+          tagName: el.tagName.toLowerCase(),
+          text,
+          html,
+          type: 'modify'
+        });
+      });
+    }
+
+    function getUniqueSelector(el) {
+      if (el.id) return `#${el.id}`;
+      let path = [];
+      while (el && el.nodeType === 1) {
+        let selector = el.tagName.toLowerCase();
+        if (el.className) {
+          const classes = el.className.toString().split(/\s+/).filter(c => c && !c.startsWith('review'));
+          if (classes.length > 0) selector += '.' + classes.join('.');
+        }
+        let siblings = Array.from(el.parentNode?.children || []);
+        let sameTag = siblings.filter(s => s.tagName === el.tagName);
+        if (sameTag.length > 1) {
+          const index = siblings.indexOf(el) + 1;
+          selector += `:nth-child(${index})`;
+        }
+        path.unshift(selector);
+        if (el.className && document.querySelectorAll?.(selector)?.length === 1) break;
+        el = el.parentNode;
+      }
+      return path.join(' > ');
+    }
+
+    function getXPath(el) {
+      let path = [];
+      while (el && el.nodeType === 1) {
+        let index = 1;
+        let sibling = el.previousElementSibling;
+        while (sibling) { if (sibling.tagName === el.tagName) index++; sibling = sibling.previousElementSibling; }
+        path.unshift(`${el.tagName.toLowerCase()}[${index}]`);
+        el = el.parentNode;
+      }
+      return '//' + path.join('/');
+    }
+
+    // ===== Steps Guide Update =====
+    function updateSteps() {
+      const hasAnnotations = annotations.length > 0;
+      const hasNotes = annotations.some(a => a.note.trim());
+
+      document.querySelectorAll('.step-item').forEach(s => s.classList.remove('active', 'done'));
+
+      if (!hasAnnotations) {
+        document.getElementById('step-1').classList.add('active');
+      } else if (!hasNotes) {
+        document.getElementById('step-1').classList.add('done');
+        document.getElementById('step-2').classList.add('active');
+      } else {
+        document.getElementById('step-1').classList.add('done');
+        document.getElementById('step-2').classList.add('done');
+        document.getElementById('step-3').classList.add('active');
+      }
+    }
+
+    // ===== Annotations =====
+    function addAnnotation(data) {
+      annoCounter++;
+      const anno = { ...data, id: annoCounter, note: '', timestamp: new Date().toLocaleString() };
+      annotations.push(anno);
+      renderList();
+      saveDraftAnnotations();
+      highlightElement(anno.selector, anno.id);
+      updateSteps();
+    }
+
+    function highlightElement(selector, id) {
+      const frame = document.getElementById('previewFrame');
+      const wrapper = document.getElementById('previewWrapper');
+      const doc = frame.contentDocument;
+      if (!doc) return;
+      try {
+        const el = doc.querySelector(selector);
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const overlay = document.createElement('div');
+        overlay.className = 'highlight-overlay';
+        overlay.dataset.annoId = id;
+        overlay.style.left = rect.left + 'px';
+        overlay.style.top = rect.top + 'px';
+        overlay.style.width = rect.width + 'px';
+        overlay.style.height = rect.height + 'px';
+        const label = document.createElement('div');
+        label.className = 'highlight-label';
+        label.textContent = `#${id}`;
+        overlay.appendChild(label);
+        wrapper.appendChild(overlay);
+      } catch (e) {}
+    }
+
+    function restoreHighlights() {
+      document.querySelectorAll('.highlight-overlay').forEach(el => el.remove());
+      annotations.forEach(a => highlightElement(a.selector, a.id));
+    }
+
+    function renderList() {
+      const list = document.getElementById('annotationList');
+      const count = document.getElementById('annoCount');
+      count.textContent = annotations.length;
+
+      if (annotations.length === 0) {
+        list.innerHTML = '<div class="empty-state">点击预览区域中的元素开始标注</div>';
+        updateDraftIndicator();
+        updateSteps();
+        return;
+      }
+
+      list.innerHTML = annotations.map(anno => {
+        const typeInfo = TYPE_MAP[anno.type] || TYPE_MAP.modify;
+        return `
+          <div class="annotation-item" data-id="${anno.id}">
+            <div class="meta">
+              <span>#${anno.id} · ${anno.tagName}</span>
+              <span>${anno.timestamp}</span>
+            </div>
+            <div class="type-badge ${typeInfo.class}">${typeInfo.label}</div>
+            <div class="selector">${escapeHtml(anno.selector)}</div>
+            <div class="content">${anno.text ? escapeHtml(anno.text) : escapeHtml(anno.html.substring(0, 80))}</div>
+            <div class="type-selector">
+              ${Object.entries(TYPE_MAP).map(([key, info]) => `
+                <button class="type-btn ${anno.type === key ? 'active' : ''} ${info.class}" data-type="${key}" onclick="setType(${anno.id}, '${key}')">${info.label}</button>
+              `).join('')}
+            </div>
+            <textarea placeholder="在此输入修改意见..." onchange="updateNote(${anno.id}, this.value)">${escapeHtml(anno.note)}</textarea>
+            <div class="actions">
+              <button class="btn btn-danger" onclick="deleteAnnotation(${anno.id})">删除</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      updateDraftIndicator();
+      updateSteps();
+    }
+
+    function setType(id, type) {
+      const anno = annotations.find(a => a.id === id);
+      if (anno) { anno.type = type; renderList(); saveDraftAnnotations(); }
+    }
+
+    function updateNote(id, note) {
+      const anno = annotations.find(a => a.id === id);
+      if (anno) { anno.note = note; saveDraftAnnotations(); updateSteps(); }
+    }
+
+    function deleteAnnotation(id) {
+      annotations = annotations.filter(a => a.id !== id);
+      document.querySelectorAll(`.highlight-overlay[data-anno-id="${id}"]`).forEach(el => el.remove());
+      renderList();
+      saveDraftAnnotations();
+    }
+
+    function clearAllAnnotations() {
+      if (!confirm('确定清空所有标注吗？')) return;
+      annotations = [];
+      annoCounter = 0;
+      document.querySelectorAll('.highlight-overlay').forEach(el => el.remove());
+      renderList();
+      saveDraftAnnotations();
+    }
+
+    // ===== Draft Persistence =====
+    function getDraftKey() {
+      return `review-draft-${SESSION}-${FILE}`;
+    }
+
+    function saveDraftAnnotations() {
+      try {
+        localStorage.setItem(getDraftKey(), JSON.stringify(annotations));
+      } catch (e) {}
+    }
+
+    function loadDraftAnnotations() {
+      try {
+        const draft = localStorage.getItem(getDraftKey());
+        if (draft) {
+          annotations = JSON.parse(draft);
+          annoCounter = annotations.reduce((m, a) => Math.max(m, a.id), 0);
+          renderList();
+        }
+      } catch (e) {}
+    }
+
+    function updateDraftIndicator() {
+      const pending = annotations.filter(a => !a.note.trim()).length;
+      const el = document.getElementById('draftIndicator');
+      if (annotations.length === 0) {
+        el.textContent = '';
+        el.style.display = 'none';
+      } else if (pending > 0) {
+        el.textContent = `${pending} 条标注尚未填写意见`;
+        el.style.color = '#8b949e';
+        el.style.display = 'block';
+      } else {
+        el.textContent = '\u2705 全部标注已填写意见，可以提交';
+        el.style.color = '#3fb950';
+        el.style.display = 'block';
+      }
+    }
+
+    function toggleSteps() {
+      const body = document.getElementById('stepsBody');
+      const btn = document.getElementById('stepsToggle');
+      body.classList.toggle('collapsed');
+      btn.textContent = body.classList.contains('collapsed') ? '展开' : '收起';
+    }
+
+    // ===== Submit =====
+    async function submitAnnotations() {
+      if (annotations.length === 0) {
+        showToast('没有标注可提交');
+        return;
+      }
+      const pending = annotations.filter(a => !a.note.trim()).length;
+      if (pending > 0 && !confirm(`有 ${pending} 条标注尚未填写意见，确定提交吗？`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/annotations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: SESSION, annotations })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`已提交 ${data.count} 条标注，Claude 将在下次检查时读取`);
+          localStorage.removeItem(getDraftKey());
+          annotations = [];
+          annoCounter = 0;
+          document.querySelectorAll('.highlight-overlay').forEach(el => el.remove());
+          renderList();
+          refreshStatus();
+        } else {
+          showToast('提交失败: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        showToast('提交失败: ' + err.message);
+      }
+    }
+
+    // ===== Approve =====
+    async function approveDesign() {
+      if (!confirm('确认通过当前设计方案？通过后 Claude 将开始代码实现。')) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: SESSION })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('已确认通过！');
+          refreshStatus();
+        } else {
+          showToast('确认失败: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        showToast('确认失败: ' + err.message);
+      }
+    }
+
+    // ===== Status =====
+    async function refreshStatus() {
+      try {
+        const res = await fetch(`${API_BASE}/api/status?session=${encodeURIComponent(SESSION)}`);
+        const data = await res.json();
+        const badge = document.getElementById('statusBadge');
+        badge.className = 'status-badge';
+        if (data.status === 'approved') {
+          badge.classList.add('status-approved');
+          badge.textContent = '已通过';
+        } else if (data.status === 'has_annotations') {
+          badge.classList.add('status-has');
+          badge.textContent = '已提交';
+        } else {
+          badge.classList.add('status-pending');
+          badge.textContent = '评审中';
+        }
+      } catch (e) {}
+    }
+
+    // ===== Utils =====
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ===== Start =====
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设计方案 - {{DESIGN_NAME}}</title>
+  <style>
+    :root {
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --border: #e5e5e5;
+      --text: #1a1a1a;
+      --text-secondary: #666666;
+      --text-muted: #999999;
+      --primary: #2563eb;
+      --primary-light: #eff6ff;
+      --warning: #f59e0b;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    /* View Switcher */
+    .view-switcher {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      padding: 8px;
+      gap: 4px;
+      box-shadow: var(--shadow);
+    }
+    .view-switcher button {
+      padding: 6px 16px;
+      border: 1px solid var(--border);
+      background: transparent;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+    .view-switcher button.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    /* Layout */
+    .main { padding: 60px 24px 40px; max-width: 960px; margin: 0 auto; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Typography */
+    h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    h2 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 15px; font-weight: 600; margin: 20px 0 8px; }
+    p { margin-bottom: 12px; color: var(--text-secondary); }
+    ul, ol { margin: 0 0 12px 20px; color: var(--text-secondary); }
+    li { margin-bottom: 6px; }
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Menlo', 'Monaco', monospace;
+      font-size: 12px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-weight: 600;
+      font-size: 15px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+
+    /* Badges */
+    .badge-primary { background: var(--primary-light); color: var(--primary); }
+    .badge-warning { background: var(--warning-light); color: var(--warning); }
+    .badge-danger { background: var(--danger-light); color: var(--danger); }
+    .badge-success { background: var(--success-light); color: var(--success); }
+
+    /* Decision Box */
+    .decision-box {
+      background: var(--primary-light);
+      border-left: 3px solid var(--primary);
+      padding: 16px;
+      border-radius: 0 var(--radius) var(--radius) 0;
+      margin: 16px 0;
+    }
+    .decision-box .label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    /* Comparison Table */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 13px;
+    }
+    .compare-table th,
+    .compare-table td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+    }
+    .compare-table th {
+      background: #f9fafb;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .compare-table .chosen {
+      background: var(--success-light);
+    }
+
+    /* UI Mockup */
+    .mockup {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 24px;
+      margin: 12px 0;
+      min-height: 120px;
+    }
+    .mockup-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Feedback Section */
+    .feedback-section {
+      background: #fefce8;
+      border: 1px solid #fde047;
+      border-radius: var(--radius);
+      padding: 16px;
+      margin: 20px 0;
+    }
+    .feedback-section h4 {
+      font-size: 13px;
+      color: #a16207;
+      margin-bottom: 8px;
+    }
+    .feedback-item {
+      padding: 8px 0;
+      border-bottom: 1px dashed #fde047;
+      font-size: 13px;
+    }
+    .feedback-item:last-child { border-bottom: none; }
+    .feedback-status {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+      margin-left: 8px;
+    }
+    .status-adopted { background: var(--success-light); color: var(--success); }
+    .status-rejected { background: var(--danger-light); color: var(--danger); }
+    .status-partial { background: var(--warning-light); color: var(--warning); }
+
+    /* Flow */
+    .flow-step {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .flow-step .number {
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .flow-step .content { flex: 1; }
+    .flow-step .content h4 { font-size: 14px; margin-bottom: 4px; }
+    .flow-step .content p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+
+    /* Meta header */
+    .meta-header {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .meta-header .subtitle {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    .meta-tags {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .meta-tag {
+      padding: 3px 10px;
+      background: #f3f4f6;
+      border-radius: 10px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .main { padding: 60px 16px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- View Switcher -->
+  <div class="view-switcher">
+    <button class="active" onclick="switchView('design')">设计方案</button>
+    <button onclick="switchView('process')">设计过程</button>
+  </div>
+
+  <div class="main">
+
+    <!-- ===== DESIGN VIEW ===== -->
+    <div class="view active" id="view-design">
+      <div class="meta-header">
+        <h1 data-review-id="title">{{DESIGN_TITLE}}</h1>
+        <p class="subtitle">{{DESIGN_SUBTITLE}}</p>
+        <div class="meta-tags">
+          <span class="meta-tag">版本 {{VERSION}}</span>
+          <span class="meta-tag">{{DATE}}</span>
+          <span class="meta-tag">{{SCOPE}}</span>
+        </div>
+      </div>
+
+      <h2 data-review-id="overview">1. 概览</h2>
+      <div class="card" data-review-id="overview-card">
+        <p>{{OVERVIEW_DESCRIPTION}}</p>
+      </div>
+
+      <h2 data-review-id="structure">2. 页面结构</h2>
+      <div class="card" data-review-id="structure-card">
+        <div class="mockup">
+          <div class="mockup-label">页面布局示意</div>
+          {{PAGE_STRUCTURE_MOCKUP}}
+        </div>
+      </div>
+
+      <h2 data-review-id="interaction">3. 交互流程</h2>
+      <div class="card" data-review-id="interaction-card">
+        {{INTERACTION_FLOW}}
+      </div>
+
+      <h2 data-review-id="components">4. 组件定义</h2>
+      <div class="card" data-review-id="components-card">
+        {{COMPONENT_DEFINITIONS}}
+      </div>
+
+      <h2 data-review-id="style">5. 样式规范</h2>
+      <div class="card" data-review-id="style-card">
+        {{STYLE_GUIDE}}
+      </div>
+
+      <h2 data-review-id="data">6. 数据流</h2>
+      <div class="card" data-review-id="data-card">
+        {{DATA_FLOW}}
+      </div>
+    </div>
+
+    <!-- ===== PROCESS VIEW ===== -->
+    <div class="view" id="view-process">
+      <div class="meta-header">
+        <h1>设计过程</h1>
+        <p class="subtitle">本方案的设计决策记录与思考过程</p>
+      </div>
+
+      <!-- Previous Round Feedback (only for v2+) -->
+      {{PREVIOUS_FEEDBACK}}
+
+      <h2>1. 需求拆解</h2>
+      <div class="card">
+        <div class="card-title">
+          <span>核心需求</span>
+          <span class="badge badge-primary">Must Have</span>
+        </div>
+        {{REQUIREMENTS_CORE}}
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <span>扩展需求</span>
+          <span class="badge badge-warning">Nice to Have</span>
+        </div>
+        {{REQUIREMENTS_EXTENDED}}
+      </div>
+
+      <h2>2. 方案对比</h2>
+      <div class="card">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th style="width:15%">维度</th>
+              <th style="width:28%">方案 A</th>
+              <th style="width:28%">方案 B</th>
+              <th style="width:29%">方案 C（选中）</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{SCHEME_COMPARISON_ROWS}}
+          </tbody>
+        </table>
+      </div>
+
+      <h2>3. 关键决策点</h2>
+      {{DECISION_POINTS}}
+
+      <h2>4. 风险与待确认</h2>
+      <div class="card">
+        <div class="card-title">
+          <span>已知风险</span>
+          <span class="badge badge-danger">Risk</span>
+        </div>
+        {{RISKS}}
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <span>待确认事项</span>
+          <span class="badge badge-warning">TBD</span>
+        </div>
+        {{TBD_ITEMS}}
+      </div>
+
+      <h2>5. 引用参考</h2>
+      <div class="card">
+        {{REFERENCES}}
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function switchView(view) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.view-switcher button').forEach(b => b.classList.remove('active'));
+      document.getElementById('view-' + view).classList.add('active');
+      event.target.classList.add('active');
+    }
+  </script>
+
+</body>
+</html>
