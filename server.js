@@ -182,19 +182,19 @@ async function startHttpServer() {
 
   return new Promise((resolve, reject) => {
     const tryPort = (port) => {
-      server
-        .listen(port, () => {
-          httpPort = port;
-          console.error(`[DesignReview] HTTP server listening on http://localhost:${port}`);
-          resolve(server);
-        })
-        .on("error", (err) => {
-          if (err.code === "EADDRINUSE") {
-            tryPort(port + 1);
-          } else {
-            reject(err);
-          }
-        });
+      server.once("error", (err) => {
+        if (err.code === "EADDRINUSE") {
+          server.close();
+          tryPort(port + 1);
+        } else {
+          reject(err);
+        }
+      });
+      server.listen(port, () => {
+        httpPort = port;
+        console.error(`[DesignReview] HTTP server listening on http://localhost:${port}`);
+        resolve(server);
+      });
     };
     tryPort(DEFAULT_PORT);
   });
